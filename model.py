@@ -66,7 +66,7 @@ class frog_dataset(Dataset):
     
 image_dir = 'Data/Images'
 best_weights = 'weights/best_weight.pth'
-BATCH_SIZE = 128 
+BATCH_SIZE = 32 
 NUM_WORKERS = 2
 PIN_MEMORY = True
 num_epochs = 100
@@ -168,9 +168,9 @@ class Trainer:
         train_loss_list = np.zeros(epochs)
         test_loss_list = np.zeros(epochs)
 
-        for epoch in tqdm(range(epochs)):
+        for epoch in range(epochs):
             self.model.train()
-            for i, (x, y) in enumerate(self.train_loader):
+            for i, (x, y) in tqdm(enumerate(self.train_loader)):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 y_pred = self.model(x)
