@@ -66,7 +66,7 @@ class frog_dataset(Dataset):
     
 image_dir = 'Data/Images'
 best_weights = 'weights/best_weight.pth'
-BATCH_SIZE = 32 
+BATCH_SIZE = 32
 NUM_WORKERS = 2
 PIN_MEMORY = True
 num_epochs = 100
@@ -151,7 +151,7 @@ class FROG_NET(nn.Module):
         output = self.linear(d4)
         
         return output
-    
+
 class Trainer:
     def __init__(self, model, train_loader, test_loader, device):
         super(Trainer, self).__init__()
@@ -161,16 +161,17 @@ class Trainer:
         self.test_loader = test_loader
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-        self.least_loss = 1
+        self.least_loss = float('inf')
 
     def train(self, epochs):
-        print("Training Started")
         train_loss_list = np.zeros(epochs)
         test_loss_list = np.zeros(epochs)
 
         for epoch in range(epochs):
             self.model.train()
-            for i, (x, y) in tqdm(enumerate(self.train_loader)):
+            running_loss = 0.0
+            train_loop = tqdm(self.train_loader, desc=f"Epoch {epoch+1}/{epochs} [Training]", leave=False)
+            for x, y in train_loop:
                 x = x.to(self.device)
                 y = y.to(self.device)
                 y_pred = self.model(x)
@@ -178,32 +179,37 @@ class Trainer:
                 loss = self.criterion(y_pred, y)
                 loss.backward()
                 self.optimizer.step()
-            test_loss =self.evaluate()
-            test_loss_list[epoch] = test_loss
-            train_loss_list[epoch] = loss.item()
-            print(f"Epoch {epoch} finished")
 
-            if (test_loss<self.least_loss):
-                torch.save(self.model.state_dict(), best_weights)
+                running_loss += loss.item()
+                train_loop.set_postfix(loss=loss.item())
+
+            avg_train_loss = running_loss / len(self.train_loader)
+            train_loss_list[epoch] = avg_train_loss
+
+            test_loss = self.evaluate(epoch)
+            test_loss_list[epoch] = test_loss
+
+            if test_loss < self.least_loss:
+                torch.save(self.model.state_dict(), 'best_weights.pth')
                 self.least_loss = test_loss
 
             if epoch % 10 == 0:
-                torch.save(self.model.state_dict(), f'weights/model_weights_{epoch}.pth')
+                torch.save(self.model.state_dict(), f'model_weights_{epoch}.pth')
 
-        np.savetxt('train_loss.txt', train_loss_list)
-        np.savetxt('test_loss.txt', test_loss_list)
-
-    def evaluate(self):
+    def evaluate(self, epoch=None):
         self.model.eval()
-        loss = 0
+        total_loss = 0.0
+        test_loop = tqdm(self.test_loader, desc=f"Epoch {epoch+1 if epoch is not None else '?'} [Evaluating]", leave=False)
         with torch.no_grad():
-            for i, (x, y) in enumerate(tqdm(self.test_loader)):
+            for x, y in test_loop:
                 x = x.to(self.device)
                 y = y.to(self.device)
                 y_pred = self.model(x)
-                loss += self.criterion(y_pred, y)
-            loss /= len(self.test_loader)
-        return loss
+                loss = self.criterion(y_pred, y)
+                total_loss += loss.item()
+                test_loop.set_postfix(loss=loss.item())
+        avg_loss = total_loss / len(self.test_loader)
+        return avg_loss
 
 if __name__ == '__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
