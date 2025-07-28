@@ -20,6 +20,7 @@ import zipfile
 
 zip_path = 'Data/Images.zip'
 extract_to = 'Data'
+model_saved = True
 
 os.makedirs(extract_to, exist_ok=True)
 os.makedirs('weights', exist_ok=True)
@@ -66,7 +67,7 @@ class frog_dataset(Dataset):
     
 image_dir = 'Data/Images'
 best_weights = 'weights/best_weight.pth'
-BATCH_SIZE = 32
+BATCH_SIZE = 128 
 NUM_WORKERS = 2
 PIN_MEMORY = True
 num_epochs = 100
@@ -197,23 +198,19 @@ class Trainer:
                 torch.save(self.model.state_dict(), f'model_weights_{epoch}.pth')
 
     def evaluate(self, epoch=None):
-        self.model.eval()
-        total_loss = 0.0
-        test_loop = tqdm(self.test_loader, desc=f"Epoch {epoch+1 if epoch is not None else '?'} [Evaluating]", leave=False)
-        with torch.no_grad():
-            for x, y in test_loop:
+            for i, (x, y) in enumerate(tqdm(self.test_loader)):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 y_pred = self.model(x)
-                loss = self.criterion(y_pred, y)
-                total_loss += loss.item()
-                test_loop.set_postfix(loss=loss.item())
-        avg_loss = total_loss / len(self.test_loader)
-        return avg_loss
+                loss += self.criterion(y_pred, y)
+            loss /= len(self.test_loader)
+        return loss
 
 if __name__ == '__main__':
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = FROG_NET()
+    if model_saved:
+        model.load_state_dict(torch.load('best_weights.pth'))
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
     model.to(DEVICE)
