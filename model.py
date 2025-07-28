@@ -66,7 +66,7 @@ class frog_dataset(Dataset):
     
 image_dir = 'Data/Images'
 best_weights = 'weights/best_weight.pth'
-BATCH_SIZE = 128
+BATCH_SIZE = 128 
 NUM_WORKERS = 2
 PIN_MEMORY = True
 num_epochs = 100
@@ -164,7 +164,7 @@ class Trainer:
         self.least_loss = 1
 
     def train(self, epochs):
-
+        print("Training Started")
         train_loss_list = np.zeros(epochs)
         test_loss_list = np.zeros(epochs)
 
@@ -181,6 +181,7 @@ class Trainer:
             test_loss =self.evaluate()
             test_loss_list[epoch] = test_loss
             train_loss_list[epoch] = loss.item()
+            print(f"Epoch {epoch} finished")
 
             if (test_loss<self.least_loss):
                 torch.save(self.model.state_dict(), best_weights)
