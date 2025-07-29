@@ -200,8 +200,9 @@ class Trainer:
             for x, y in test_loop:
                 x = x.to(self.device)
                 y = y.to(self.device)
+                mask = torch.abs(y) > 1e-2
                 y_pred = self.model(x)
-                loss = self.criterion(y_pred, y)
+                loss = nn.MSELoss()(y_pred[mask], y[mask])
                 total_loss += loss.item()
                 test_loop.set_postfix(loss=loss.item())
         avg_loss = total_loss / len(self.test_loader)
