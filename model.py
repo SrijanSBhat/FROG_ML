@@ -149,7 +149,7 @@ class Trainer:
         self.model = model.to(self.device)
         self.train_loader = train_loader
         self.test_loader = test_loader
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=0.001, weight_decay=1e-2)
         self.least_loss = float('inf')
 
     def train(self, epochs):
