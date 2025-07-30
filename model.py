@@ -117,17 +117,16 @@ class FROG_NET(nn.Module):
         )
 
         self.conv4 = nn.Sequential(
-            nn.Conv2d(out_channels * 8, out_channels * 8, kernel_size=3, stride=1, padding=1, bias=False),\
-            nn.BatchNorm2d(out_channels * 8),
+            nn.Conv2d(out_channels * 8, out_channels * 16, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels * 16),
             nn.LeakyReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
-        self.upsample = nn.Upsample(scale_factor=4, mode='bilinear', align_corners = True)
-
         self.linear = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Linear(int(image_size * image_size / 16) , output_size * 2),
+            nn.Linear(out_channels * 16, output_size * 2),
             nn.LeakyReLU(inplace=True),
             nn.Linear(output_size*2, output_size)
         )
@@ -139,11 +138,7 @@ class FROG_NET(nn.Module):
         e3 = self.conv3(e2)
         e4 = self.conv4(e3)
 
-        up = self.upsample(e4)
-
-        avg = torch.mean(up, dim=1)
-
-        output = self.linear(avg)
+        output = self.linear(e4)
         
         return output
 
@@ -168,7 +163,7 @@ class Trainer:
             for x, y in train_loop:
                 x = x.to(self.device)
                 y = y.to(self.device)
-                mask = torch.abs(y) > 1e-2
+                mask = torch.abs(y) > 1e-3
                 y_pred = self.model(x)
                 self.optimizer.zero_grad()
                 loss = nn.MSELoss()(y_pred[mask], y[mask])
@@ -200,7 +195,7 @@ class Trainer:
             for x, y in test_loop:
                 x = x.to(self.device)
                 y = y.to(self.device)
-                mask = torch.abs(y) > 1e-2
+                mask = torch.abs(y) > 1e-3
                 y_pred = self.model(x)
                 loss = nn.MSELoss()(y_pred[mask], y[mask])
                 total_loss += loss.item()
@@ -210,7 +205,7 @@ class Trainer:
 
 def main():
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = FROG_NET(image_size=image_size)
+    model = FROG_NET()
     if load_weights:
         model.load_state_dict(torch.load('best_weights.pth'))
 
